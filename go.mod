@@ -1,4 +1,4 @@
-module github.com/dev-voloshenko-dmitriy/easy_env
+module github.com/dev-voloshenko-dmitriy/easyenv
 
 go 1.23.0
 
