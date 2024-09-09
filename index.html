@@ -1,0 +1,538 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>easyenv: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/dev-voloshenko-dmitriy/easyenv/easy_env.go (100.0%)</option>
+				
+				<option value="file1">github.com/dev-voloshenko-dmitriy/easyenv/env_default.go (100.0%)</option>
+				
+				<option value="file2">github.com/dev-voloshenko-dmitriy/easyenv/env_parser.go (56.9%)</option>
+				
+				<option value="file3">github.com/dev-voloshenko-dmitriy/easyenv/env_required.go (100.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package easyenv
+
+import (
+        "errors"
+        "os"
+        "reflect"
+        "strconv"
+)
+
+type EnvHelperInterface interface {
+        GetKeyHelper() string
+        Execute(value string, incoming_value string) (string, error)
+}
+
+type Env struct {
+        Data map[string]string
+}
+
+var Halpers = []EnvHelperInterface{
+        &amp;EnvDefault{},
+        &amp;EnvRequired{},
+}
+
+func NewDecoder(filePath string) (*Env, error) <span class="cov8" title="1">{
+        fileIsExist := checkFileExists(filePath)
+        if !fileIsExist </span><span class="cov8" title="1">{
+                return nil, errors.New("file not found")
+        }</span>
+
+        <span class="cov8" title="1">data, err := Read(filePath)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">return &amp;Env{Data: data}, nil</span>
+}
+
+func checkFileExists(filePath string) bool <span class="cov8" title="1">{
+        _, err := os.Stat(filePath)
+        if err != nil &amp;&amp; os.IsNotExist(err) </span><span class="cov8" title="1">{
+                return false
+        }</span>
+
+        <span class="cov8" title="1">return true</span>
+}
+
+func (e *Env) Load(target interface{}) error <span class="cov8" title="1">{
+        targetType := reflect.TypeOf(target)
+        if targetType.Kind() != reflect.Ptr </span><span class="cov8" title="1">{
+                return errors.New("target must be a pointer")
+        }</span>
+
+        <span class="cov8" title="1">targetStruct := targetType.Elem()
+        targetStructValue := reflect.ValueOf(target).Elem()
+
+        for i := 0; i &lt; targetStruct.NumField(); i++ </span><span class="cov8" title="1">{
+                field := targetStruct.Field(i)
+                incoming_value := e.Data[field.Tag.Get("env")]
+
+                for _, helper := range Halpers </span><span class="cov8" title="1">{
+
+                        value := field.Tag.Get(helper.GetKeyHelper())
+                        if value == "" </span><span class="cov8" title="1">{
+                                continue</span>
+                        }
+
+                        <span class="cov8" title="1">helper_value, err := helper.Execute(value, incoming_value)
+                        if err != nil </span><span class="cov8" title="1">{
+                                return err
+                        }</span>
+
+                        <span class="cov8" title="1">incoming_value = helper_value</span>
+                }
+
+                <span class="cov8" title="1">convertValue, error := convertForString(field.Type, incoming_value)
+                if error != nil </span><span class="cov8" title="1">{
+                        return error
+                }</span>
+
+                <span class="cov8" title="1">targetStructValue.FieldByName(field.Name).Set(reflect.ValueOf(convertValue))</span>
+        }
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+func convertForString(typeValue reflect.Type, value string) (any, error) <span class="cov8" title="1">{
+        switch typeValue.String() </span>{
+        case "int":<span class="cov8" title="1">
+                return strconv.Atoi(value)</span>
+        case "float64":<span class="cov8" title="1">
+                return strconv.ParseFloat(value, 64)</span>
+        case "string":<span class="cov8" title="1">
+                return value, nil</span>
+        default:<span class="cov8" title="1">
+                return nil, errors.New("unsupported type")</span>
+        }
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package easyenv
+
+type EnvDefault struct{}
+
+func (e *EnvDefault) GetKeyHelper() string <span class="cov8" title="1">{
+        return "env-default"
+}</span>
+
+func (e *EnvDefault) Execute(value string, incoming_value string) (string, error) <span class="cov8" title="1">{
+        if incoming_value == "" </span><span class="cov8" title="1">{
+                return value, nil
+        }</span>
+
+        <span class="cov8" title="1">return incoming_value, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package easyenv
+
+import (
+        "bytes"
+        "errors"
+        "fmt"
+        "io"
+        "os"
+        "regexp"
+        "strings"
+        "unicode"
+)
+
+const (
+        charComment       = '#'
+        prefixSingleQuote = '\''
+        prefixDoubleQuote = '"'
+
+        exportPrefix = "export"
+)
+
+func Read(fileName string) (envMap map[string]string, err error) <span class="cov8" title="1">{
+        file, err := os.Open(fileName)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">defer file.Close()
+
+        return parse(file)</span>
+}
+
+func parse(r io.Reader) (map[string]string, error) <span class="cov8" title="1">{
+        var buf bytes.Buffer
+
+        _, err := io.Copy(&amp;buf, r)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">return unmarshalBytes(buf.Bytes())</span>
+}
+
+func unmarshalBytes(src []byte) (map[string]string, error) <span class="cov8" title="1">{
+        out := make(map[string]string)
+        err := parseBytes(src, out)
+
+        return out, err
+}</span>
+
+func parseBytes(src []byte, out map[string]string) error <span class="cov8" title="1">{
+        src = bytes.Replace(src, []byte("\r\n"), []byte("\n"), -1)
+        cutset := src
+        for </span><span class="cov8" title="1">{
+                cutset = getStatementStart(cutset)
+                if cutset == nil </span><span class="cov8" title="1">{
+                        // reached end of file
+                        break</span>
+                }
+
+                <span class="cov8" title="1">key, left, err := locateKeyName(cutset)
+                if err != nil </span><span class="cov8" title="1">{
+                        return err
+                }</span>
+
+                <span class="cov8" title="1">value, left, err := extractVarValue(left, out)
+                if err != nil </span><span class="cov0" title="0">{
+                        return err
+                }</span>
+
+                <span class="cov8" title="1">out[key] = value
+                cutset = left</span>
+        }
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+func getStatementStart(src []byte) []byte <span class="cov8" title="1">{
+        pos := indexOfNonSpaceChar(src)
+        if pos == -1 </span><span class="cov8" title="1">{
+                return nil
+        }</span>
+
+        <span class="cov8" title="1">src = src[pos:]
+        if src[0] != charComment </span><span class="cov8" title="1">{
+                return src
+        }</span>
+
+        // skip comment section
+        <span class="cov0" title="0">pos = bytes.IndexFunc(src, isCharFunc('\n'))
+        if pos == -1 </span><span class="cov0" title="0">{
+                return nil
+        }</span>
+
+        <span class="cov0" title="0">return getStatementStart(src[pos:])</span>
+}
+
+func indexOfNonSpaceChar(src []byte) int <span class="cov8" title="1">{
+        return bytes.IndexFunc(src, func(r rune) bool </span><span class="cov8" title="1">{
+                return !unicode.IsSpace(r)
+        }</span>)
+}
+
+func isCharFunc(char rune) func(rune) bool <span class="cov0" title="0">{
+        return func(v rune) bool </span><span class="cov0" title="0">{
+                return v == char
+        }</span>
+}
+
+func isSpace(r rune) bool <span class="cov8" title="1">{
+        switch r </span>{
+        case '\t', '\v', '\f', '\r', ' ', 0x85, 0xA0:<span class="cov0" title="0">
+                return true</span>
+        }
+        <span class="cov8" title="1">return false</span>
+}
+
+func locateKeyName(src []byte) (key string, cutset []byte, err error) <span class="cov8" title="1">{
+        src = bytes.TrimLeftFunc(src, isSpace)
+        if bytes.HasPrefix(src, []byte(exportPrefix)) </span><span class="cov0" title="0">{
+                trimmed := bytes.TrimPrefix(src, []byte(exportPrefix))
+                if bytes.IndexFunc(trimmed, isSpace) == 0 </span><span class="cov0" title="0">{
+                        src = bytes.TrimLeftFunc(trimmed, isSpace)
+                }</span>
+        }
+
+        // locate key name end and validate it in single loop
+        <span class="cov8" title="1">offset := 0
+loop:
+        for i, char := range src </span><span class="cov8" title="1">{
+                rchar := rune(char)
+                if isSpace(rchar) </span><span class="cov0" title="0">{
+                        continue</span>
+                }
+
+                <span class="cov8" title="1">switch char </span>{
+                case '=', ':':<span class="cov8" title="1">
+                        // library also supports yaml-style value declaration
+                        key = string(src[0:i])
+                        offset = i + 1
+                        break loop</span>
+                case '_':<span class="cov0" title="0"></span>
+                default:<span class="cov8" title="1">
+                        // variable name should match [A-Za-z0-9_.]
+                        if unicode.IsLetter(rchar) || unicode.IsNumber(rchar) || rchar == '.' </span><span class="cov8" title="1">{
+                                continue</span>
+                        }
+
+                        <span class="cov8" title="1">return "", nil, fmt.Errorf(
+                                `unexpected character %q in variable name near %q`,
+                                string(char), string(src))</span>
+                }
+        }
+
+        <span class="cov8" title="1">if len(src) == 0 </span><span class="cov0" title="0">{
+                return "", nil, errors.New("zero length string")
+        }</span>
+
+        <span class="cov8" title="1">key = strings.TrimRightFunc(key, unicode.IsSpace)
+        cutset = bytes.TrimLeftFunc(src[offset:], isSpace)
+        return key, cutset, nil</span>
+}
+
+func hasQuotePrefix(src []byte) (prefix byte, isQuored bool) <span class="cov8" title="1">{
+        if len(src) == 0 </span><span class="cov0" title="0">{
+                return 0, false
+        }</span>
+
+        <span class="cov8" title="1">switch prefix := src[0]; prefix </span>{
+        case prefixDoubleQuote, prefixSingleQuote:<span class="cov0" title="0">
+                return prefix, true</span>
+        default:<span class="cov8" title="1">
+                return 0, false</span>
+        }
+}
+
+func isLineEnd(r rune) bool <span class="cov8" title="1">{
+        if r == '\n' || r == '\r' </span><span class="cov8" title="1">{
+                return true
+        }</span>
+        <span class="cov8" title="1">return false</span>
+}
+
+func extractVarValue(src []byte, vars map[string]string) (value string, rest []byte, err error) <span class="cov8" title="1">{
+        quote, hasPrefix := hasQuotePrefix(src)
+        if !hasPrefix </span><span class="cov8" title="1">{
+                // unquoted value - read until end of line
+                endOfLine := bytes.IndexFunc(src, isLineEnd)
+
+                // Hit EOF without a trailing newline
+                if endOfLine == -1 </span><span class="cov0" title="0">{
+                        endOfLine = len(src)
+
+                        if endOfLine == 0 </span><span class="cov0" title="0">{
+                                return "", nil, nil
+                        }</span>
+                }
+
+                // Convert line to rune away to do accurate countback of runes
+                <span class="cov8" title="1">line := []rune(string(src[0:endOfLine]))
+
+                // Assume end of line is end of var
+                endOfVar := len(line)
+                if endOfVar == 0 </span><span class="cov0" title="0">{
+                        return "", src[endOfLine:], nil
+                }</span>
+
+                // Work backwards to check if the line ends in whitespace then
+                // a comment (ie asdasd # some comment)
+                <span class="cov8" title="1">for i := endOfVar - 1; i &gt;= 0; i-- </span><span class="cov8" title="1">{
+                        if line[i] == charComment &amp;&amp; i &gt; 0 </span><span class="cov0" title="0">{
+                                if isSpace(line[i-1]) </span><span class="cov0" title="0">{
+                                        endOfVar = i
+                                        break</span>
+                                }
+                        }
+                }
+
+                <span class="cov8" title="1">trimmed := strings.TrimFunc(string(line[0:endOfVar]), isSpace)
+
+                return expandVariables(trimmed, vars), src[endOfLine:], nil</span>
+        }
+
+        // lookup quoted string terminator
+        <span class="cov0" title="0">for i := 1; i &lt; len(src); i++ </span><span class="cov0" title="0">{
+                if char := src[i]; char != quote </span><span class="cov0" title="0">{
+                        continue</span>
+                }
+
+                // skip escaped quote symbol (\" or \', depends on quote)
+                <span class="cov0" title="0">if prevChar := src[i-1]; prevChar == '\\' </span><span class="cov0" title="0">{
+                        continue</span>
+                }
+
+                // trim quotes
+                <span class="cov0" title="0">trimFunc := isCharFunc(rune(quote))
+                value = string(bytes.TrimLeftFunc(bytes.TrimRightFunc(src[0:i], trimFunc), trimFunc))
+                if quote == prefixDoubleQuote </span><span class="cov0" title="0">{
+                        // unescape newlines for double quote (this is compat feature)
+                        // and expand environment variables
+                        value = expandVariables(expandEscapes(value), vars)
+                }</span>
+
+                <span class="cov0" title="0">return value, src[i+1:], nil</span>
+        }
+
+        // return formatted error if quoted string is not terminated
+        <span class="cov0" title="0">valEndIndex := bytes.IndexFunc(src, isCharFunc('\n'))
+        if valEndIndex == -1 </span><span class="cov0" title="0">{
+                valEndIndex = len(src)
+        }</span>
+
+        <span class="cov0" title="0">return "", nil, fmt.Errorf("unterminated quoted value %s", src[:valEndIndex])</span>
+}
+
+func expandEscapes(str string) string <span class="cov0" title="0">{
+        out := escapeRegex.ReplaceAllStringFunc(str, func(match string) string </span><span class="cov0" title="0">{
+                c := strings.TrimPrefix(match, `\`)
+                switch c </span>{
+                case "n":<span class="cov0" title="0">
+                        return "\n"</span>
+                case "r":<span class="cov0" title="0">
+                        return "\r"</span>
+                default:<span class="cov0" title="0">
+                        return match</span>
+                }
+        })
+        <span class="cov0" title="0">return unescapeCharsRegex.ReplaceAllString(out, "$1")</span>
+}
+
+var (
+        escapeRegex        = regexp.MustCompile(`\\.`)
+        expandVarRegex     = regexp.MustCompile(`(\\)?(\$)(\()?\{?([A-Z0-9_]+)?\}?`)
+        unescapeCharsRegex = regexp.MustCompile(`\\([^$])`)
+)
+
+func expandVariables(v string, m map[string]string) string <span class="cov8" title="1">{
+        return expandVarRegex.ReplaceAllStringFunc(v, func(s string) string </span><span class="cov0" title="0">{
+                submatch := expandVarRegex.FindStringSubmatch(s)
+
+                if submatch == nil </span><span class="cov0" title="0">{
+                        return s
+                }</span>
+                <span class="cov0" title="0">if submatch[1] == "\\" || submatch[2] == "(" </span><span class="cov0" title="0">{
+                        return submatch[0][1:]
+                }</span> else<span class="cov0" title="0"> if submatch[4] != "" </span><span class="cov0" title="0">{
+                        return m[submatch[4]]
+                }</span>
+                <span class="cov0" title="0">return s</span>
+        })
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">package easyenv
+
+import (
+        "errors"
+        "fmt"
+)
+
+type EnvRequired struct{}
+
+func (e *EnvRequired) GetKeyHelper() string <span class="cov8" title="1">{
+        return "env-required"
+}</span>
+
+func (e *EnvRequired) Execute(value string, incoming_value string) (string, error) <span class="cov8" title="1">{
+
+        if value == "true" &amp;&amp; incoming_value == "" </span><span class="cov8" title="1">{
+                return "", errors.New(fmt.Sprintf("Environment variable %s is required", e.GetKeyHelper()))
+        }</span>
+
+        <span class="cov8" title="1">return incoming_value, nil</span>
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

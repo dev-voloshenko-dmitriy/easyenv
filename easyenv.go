@@ -3,10 +3,9 @@ package easyenv
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"reflect"
-	"strconv"
-
-	"github.com/joho/godotenv"
+	"strings"
 )
 
 type EnvHelperInterface interface {
@@ -29,7 +28,12 @@ func NewDecoder(filePath string) (*Env, error) {
 		return nil, errors.New("file not found")
 	}
 
-	data, err := godotenv.Read(filePath)
+	typeFile := strings.ToLower(filepath.Ext(filePath))
+	if typeFile != ".env" {
+		return nil, errors.New("file type not supported")
+	}
+
+	data, err := Read(filePath)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +78,7 @@ func (e *Env) Load(target interface{}) error {
 			incoming_value = helper_value
 		}
 
-		convertValue, error := convertForString(field.Type, incoming_value)
+		convertValue, error := convertFormString(field.Type.Kind(), incoming_value)
 		if error != nil {
 			return error
 		}
@@ -85,15 +89,11 @@ func (e *Env) Load(target interface{}) error {
 	return nil
 }
 
-func convertForString(typeValue reflect.Type, value string) (any, error) {
-	switch typeValue.String() {
-	case "int":
-		return strconv.Atoi(value)
-	case "float64":
-		return strconv.ParseFloat(value, 64)
-	case "string":
-		return value, nil
-	default:
+func convertFormString(typeValue reflect.Kind, value string) (any, error) {
+	convertFunc := defaultBuiltInParsers[typeValue]
+	if convertFunc == nil {
 		return nil, errors.New("unsupported type")
 	}
+
+	return convertFunc(value)
 }
